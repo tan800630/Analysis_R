@@ -1,0 +1,112 @@
+library(smacof)
+library(ca)
+library(pls)
+library(SciViews)
+library(MVA)
+library(psych)
+library(vegan)
+
+###dat1####
+
+dat=read.table("finaldat.txt",header=T)
+
+rownames(dat)=dat[,1]
+dat=dat[,-1]
+
+dat.mds=smacofRect(dat[,-1],itmax=2000)
+
+plot(dat.mds)
+
+plot(dat.mds,joint=T)
+
+plot(dat.mds,plot.type="Shepard")
+
+
+dat.ca=ca(38-dat)
+plot(dat.ca)
+
+###dat2####
+
+dats=read.table("finaldat_score.txt",header=T)
+rownames(dats)=dats[,1]
+dats=dats[,-1]
+colnames(dats)[c(8,12)]=c("公民.政府","工作.生活")
+#
+plot(correlation(dats[names(sort(apply(cor(dats,use="pairwise"),1,mean)))]))
+
+pairs.panels(dats[names(sort(apply(cor(dats,use="pairwise"),1,mean)))])
+
+pairs.panels(dats[,2:4])
+pairs.panels(dats[,5:12])
+
+hist(dats[,1],xlim=c(0,10),xlab="綜合分數",freq=F,nclass=10)
+
+cord=cor(dats)[2:4,5:12]
+cord[ ,order(-cord[1, ])]
+
+heatmap(cor(dats[ ,-1]))
+
+
+#PCA
+dats.pca=prcomp(~居住.條件+所得.與.財富+工作.與.收入+社會.聯繫+
+教育.與.技能+環境.品質+公民.政府+健康.狀況+主觀.幸福感+人身.安全+
+工作.生活,data=dats,na.action=na.omit,scale=T)
+
+loading_pca_dats=dats.pca$rotation[ ,1:3]
+loading_pca_dats[order(abs(dats.pca$rotation[ ,2])), ]
+
+plot(dats.pca$rotation[ ,1] ,dats.pca$rotation[ ,2], type="n",xlab="PC1",ylab="PC2")
+text(dats.pca$rotation[ ,1] ,dats.pca$rotation[ ,2], labels=colnames(dats[ ,-1]))
+
+barplot(dats.pca$rotation[order(dats.pca$rotation[,2]), 2], ylim=c(-1,1),
+ylab="Loading", main="PC2",cex.names=0.8)
+
+biplot(dats.pca,cex=0.7, scale=T)
+
+
+
+#MDS
+dats.mds=smacofRect(10-dats[,-1],itmax=2000)
+
+plot(dats.mds)
+
+plot(dats.mds,joint=T,cex=0.8)
+
+plot(dats.mds$conf.row[,1],dats.mds$conf.row[,2],type="n",xlab="D1",ylab="D2")
+text(dats.mds$conf.row[,1],dats.mds$conf.row[,2],labels=rownames(dats),
+cex=0.7,col="blue")
+text(dats.mds$conf.col[,1],dats.mds$conf.col[,2],labels=colnames(dats[,-1]),
+cex=0.7,col="red")
+
+
+
+#span tree
+dats.tr=spantree(dist(t(dats)))
+plot(dats.tr,cmdscale(dist(t(dats))),type="t")
+
+
+##cluster analysis
+
+dats.clust=hclust(dist(t(dats)),"single")
+plot(dats.clust)
+
+dats.km=kmeans(t(dats[,-1]),centers=2)
+plot(dats.mds$conf.col[,1],dats.mds$conf.col[,2],type="n",xlab="D1",ylab="D2")
+text(dats.mds$conf.col[,1:2],labels=colnames(dats[,-1]),cex=0.7,col=dats.km$cluster)
+
+
+
+
+
+####dat3#####
+
+datr=read.table("finaldat_raw.txt",header=T,row.names=1)
+
+plot(correlation(datr[names(sort(apply(cor(datr[,1:3],use="pairwise"),1,mean)))]))
+
+pairs.panels(datr[names(sort(apply(cor(datr[,1:12],use="pairwise"),1,mean)))])
+
+rc=c("brown","brown","brown","red","red","green","green","green","green",
+"cyan","purple","purple","purple","gray","gray","gray4","gray4","skyblue",
+"skyblue","pink","blue","blue","yellow","yellow")
+heatmap(cor(datr),RowSideColors=rc)
