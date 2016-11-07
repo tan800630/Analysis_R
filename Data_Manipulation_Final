@@ -1,0 +1,247 @@
+pks <- c("HH","classInt","ggplot2","maps", "mapdata", "maptools", "ggmap", "rworldmap",  "RgoogleMaps", "sp")
+lapply(pks, require, character.only=T)
+
+#data-input
+numb= function(x){as.numeric(gsub(",", "",x))}
+
+#data1--hdatAC_all
+dat=read.csv("2012身心障礙人數AreaCategory.csv",header=T)
+dat[,2:20]=sapply(dat[,2:20],numb)
+region=c("全體","北部","北部","中部","南部","南部","北部","北部","北部","中部","中部",
+"中部","中部","南部","南部","東部","東部","離島","北部","北部","南部","離島","離島")
+hdatAC_all=data.frame(dat[,c(1,2,3,4,21,22,23)],region)
+colnames(hdatAC_all)=c("城市","h總計","男性","女性","總比例","男性比例","女性比例","地區")
+
+#data2--hdatAA
+dat=read.csv("2012身心障礙人數AreaAgeLevel.csv",header=T)
+dat[,2:27]=sapply(dat[,2:27],numb)
+hdatAA=dat[,1:12]
+colnames(hdatAA)=c("城市","total","0-2歲","3-5歲","6-11歲","12-14歲","15-17歲","18-29歲","30-44歲","45-59歲","60-64歲","65歲以上")
+
+#data3--datA
+dat=read.csv("2012縣市人數age.csv",header=T)
+datA=dat[dat$性別=="T.",-2]
+
+#dat4--datAN2012
+dat=read.csv("歷年年齡人數.csv",header=T)
+datAN2012=dat[dat$年份=="一○一年  2012",]
+colnames(datAN2012)[4:104]=c(as.character(0:100))
+
+
+
+#PART I 身心障礙比例與年齡層
+#organize data
+allagedat=data.frame(datAN2012[1,3],sum(datAN2012[1,4:6]),sum (datAN2012[1,7:9]),
+sum(datAN2012[1,10:15]),sum(datAN2012[1,16:18]),sum(datAN2012 [1,19:21]),
+sum(datAN2012[1,22:33]),sum(datAN2012[1,34:48]),sum(datAN2012 [1,49:63]),
+sum(datAN2012[1,64:68]),sum(datAN2012[1,69:104]))
+
+colnames(allagedat)=colnames(hdatAA)[2:12]
+agehdat=hdatAA[1,-1]
+nallagedat=reshape(allagedat,v.names="人數",varying=list(1:11),new.row.names=c(1:11),
+times=c(colnames(allagedat)),idvar="group",ids="全體人口",timevar="年齡層",direction="long")
+nagehdat=reshape(agehdat,v.names="人數",varying=list (1:11),new.row.names=c(1:11),
+times=c(colnames(agehdat)),idvar="group",ids="身心障礙人口",timevar="年齡層",direction="long")
+#convert number to ratio
+nallagedat$百分比=nallagedat$人數/nallagedat[1,2]
+nagehdat$百分比=nagehdat$人數/nagehdat[1,2]
+
+agedat=rbind(nallagedat,nagehdat)
+agedat[,1]=ordered(agedat[,1],levels=c("0-2歲","3-5歲","6-11歲","12-14歲",
+"15-17歲","18-29歲","30-44歲","45-59歲","60-64歲","65歲以上","total"),
+labels=c("0-2歲","3-5歲","6-11歲","12-14歲","15-17歲","18-29歲","30-44 歲",
+"45-59歲","60-64歲","65歲以上","total"))
+
+allagedat2=data.frame(datA[,c(1,2)],rowSums(datA[,3:5]),
+rowSums(datA[,6:15]),rowSums(datA[,16:23]),rep("全體人口",23))
+agehdat2=data.frame(hdatAA[,1:2],rowSums(hdatAA[,3:6]),
+rowSums(hdatAA[,7:11]),hdatAA[,12],rep("身心障礙人口",23))
+
+allagedat2[,1]=agehdat2[,1]=as.character(allagedat2[,1])
+allagedat2[1,1]=agehdat2[1,1]="總計"
+colnames(allagedat2)=colnames(agehdat2)=c("城市","總人數","0-14歲",
+"15-64歲","65歲以上","group")
+#convert number to ratio
+agedat2=rbind(allagedat2,agehdat2)
+agedat2p=agedat2
+agedat2p[,3:5]=agedat2[,3:5]/agedat2[,2]
+
+#organize data--hagepercent
+hagepercent=data.frame(agedat[1:11,1],agedat[12:22,2]/agedat[1:11,2])
+colnames(hagepercent)=c("年齡層","身心障礙比例")
+
+#organize data--agedat2 and agedat2_l (age group level = 3)
+nagedat2p=reshape(agedat2p,v.names="比例",varying=list(3:5),
+times=c(colnames(agedat2p)[3:5]),timevar="年齡層",direction="long")
+rownames(nagedat2p)=NULL
+agedat2_l=nagedat2p[,1:5]
+
+#圖一、全體人口與身心障礙人口在年齡層之比例分布
+likertdat=agedat2[c(1,24),3:6]
+rownames(likertdat)=likertdat[,4]
+likert(likertdat,main="年齡層分布",as.percent=T)
+
+#圖二、身心障礙人口佔各年齡層總人口之比例
+ggplot(hagepercent[-1,],aes(x=年齡層,y=身心障礙比例,group=1))+
+geom_point(size=3)+ggtitle("身心障礙人口佔各年齡層比例")+geom_line()+
+theme(axis.text.x=element_text(size=8,hjust=0.5))+theme_bw()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#PART II 身心障礙比例與縣市
+#organize data
+dat1=data.frame(hdatAC_all,datA[,2])
+colnames(dat1)[9]="總人口"
+dat1=dat1[,c(1,2,5,8,9)]
+
+#organize data--datAC
+datAC=dat1[-1,]
+datAC$城市=with(datAC,reorder(城市,總比例))
+
+#圖三、各縣市身心障礙人口比例之箱型圖
+bwplot(~總比例/100,data=datAC,xlab="身心障礙人口比例")
+
+#圖四、各縣市身心障礙人口比例之散佈圖
+col2=c("lightblue","royalblue3","indianred","gray","pink")
+
+ggplot(datAC,aes(x=城市,y=總比例/100,colour=地區))+
+scale_colour_manual(values=col2)+
+geom_point(size=3)+theme_bw()+
+theme(axis.text.x=element_text(angle=60,hjust=1,face="bold"))+
+ylab("")+ggtitle("2012年身心障礙人口比例")+
+theme(legend.position=c(0.1,0.8),plot.title=element_text(face="bold"))
+
+#圖五、各縣市身心障礙人口比例圖
+taiwan_shp=readShapePoly("TWN_adm/TWN_adm2.shp")
+chiayi_per=(datAC[20,3]*datAC[20,5]+datAC[13,3]*datAC[13,5])/(datAC[20,5]+datAC[13,5])
+hsinchu_per=(datAC[8,3]*datAC[8,5]+datAC[19,3]*datAC[19,5])/(datAC[8,5]+datAC[19,5])
+
+datAC_map=c(datAC[c(5,2,10),3],chiayi_per,hsinchu_per,
+datAC[c(16,6,5,18,9,11,17,14,3,3,4,4,1,15,7,12),3])
+taiwan_shp$percent=datAC_map
+color=c("#ccd4f3","#99a9e8","#667edc","#3253d1","#0024b2")
+brks=classIntervals(taiwan_shp$percent,n=5,
+style="fixed",fixedBreaks=c(0,4.5,5.5,6.5,7.5,8.2))
+brks=brks$brks
+
+plot(taiwan_shp,col=color[findInterval(taiwan_shp$percent
+,brks,all.inside=TRUE)])
+legend(118.8,25.5,c("低於4.5%","4.5-5.5%","5.5-6.5%","6.5-7.5%","高於 7.5%"),fill=color,
+text.col="green4",bg="gray90",title="身心障礙比例")
+
+#圖六、各縣市人口與身心障礙比例散佈圖
+#調整文字位置
+vj=c(rep(0,22))
+vj[c(5,6,19,20)]=1
+
+ggplot(datAC,aes(x=總人口/1000,y=總比例))+
+geom_hline(yintercept=dat1[1,3])+
+geom_point()+geom_text(aes(label=datAC$城市),size=3,hjust=-0.2,vjust=vj)+theme_bw()+
+xlab("城市人口\n單位 : 千人")+ylab("身心障礙人口比例")+xlim(0,4200)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#PART III 各年齡層身心障礙比例與縣市
+#organize data--agedatC_m_l
+agedatC_m=data.frame(agedat2[1:23,1],agedat2[24:46,3:5]/agedat2[1:23,3:5],
+hdatAC_all$地區)
+colnames(agedatC_m)=c(colnames(agedat2)[c(1,3,4,5)],"地區")
+citycol2=c(5,5,2,2,2,2,2,1,4,4,1,4,1,2,5,4,1,1,4,2,3,3)
+agedatC_m$城市=with(agedatC_m,reorder(城市,agedatC_m[,3]))
+
+agedatC_m_l=reshape(agedatC_m,v.names="比例",varying=list(2:4),
+times=c(colnames(agedatC_m)[2:4]),timevar="年齡層",direction="long")[,1:4]
+rownames(agedatC_m_l)=NULL
+agedatC_m_l=agedatC_m_l[agedatC_m_l$城市!="總計",]
+
+#organize data--xyplotagedat
+xyplotagedat=cbind(agedatC_m[-1,],datAC$總人口)
+colnames(xyplotagedat)[6]="總人口"
+
+#圖七、0-14歲族群各縣市人口與身心障礙比例散佈圖
+vj=c(rep(0,22))
+vj[c(1,17,19)]=-0.7
+vj[c(11,20)]=-0.6
+vj[c(5,9)]=0.2
+
+hj=c(rep(-0.2,22))
+hj[11]=0.2
+hj[20]=0.4
+hj[c(1,19)]=0.5
+hj[17]=0.9
+
+ggplot(xyplotagedat,aes(x=總人口/1000,y=xyplotagedat[,2]))+
+geom_hline(yintercept=agedatC_m[1,2])+geom_point(aes(color=地區))+
+geom_text(aes(label=xyplotagedat$城市),size=3,hjust=hj,vjust=vj)+
+theme_bw()+xlab("城市總人口\n單位 : 千人")+ylab("身心障礙人口比例")+
+ggtitle("0-14歲組")+theme(legend.position=c(0.85,0.8),
+plot.title=element_text(face="bold"))+scale_colour_manual(values=col2)
+
+
+#圖八、15-64歲族群各縣市人口與身心障礙比例散佈圖
+vj=c(rep(0,22))
+vj[c(1,4,18,19)]=-0.7
+vj[6]=-0.4
+vj[c(12,20)]=0.4
+
+hj=c(rep(-0.2,22))
+hj[c(1,4,18)]=0.5
+hj[19]=0.8
+
+ggplot(xyplotagedat,aes(x=總人口/1000,y=xyplotagedat[,3]))+
+geom_hline(yintercept=agedatC_m[1,3])+geom_point(aes(color=地區))+
+geom_text(aes(label=xyplotagedat$城市),size=3,hjust=hj,vjust=vj)+
+theme_bw()+xlab("城市總人口\n單位 : 千人")+ylab("身心障礙人口比例")+
+ggtitle("15-64歲組")+theme(legend.position=c(0.85,0.8),
+plot.title=element_text(face="bold"))+scale_colour_manual(values=col2)
+
+#圖九、65歲以上族群各縣市人口與身心障礙比例散佈圖
+vj=c(rep(0,22))
+vj[c(1,15)]=-0.8
+hj=c(rep(-0.2,22))
+hj[c(1,15)]=0.5
+
+ggplot(xyplotagedat,aes(x=總人口/1000,y=xyplotagedat[,4]))+
+geom_hline(yintercept=agedatC_m[1,4])+geom_point(aes(color=地區))+
+geom_text(aes(label=xyplotagedat$城市),size=3,hjust=hj,vjust=vj)+
+theme_bw()+xlab("城市總人口\n單位 : 千人")+ylab("身心障礙人口比例")+
+ggtitle("65歲以上 組")+theme(legend.position=c(0.85,0.8),
+plot.title=element_text(face="bold"))+scale_colour_manual(values=col2)
+
+#圖十、在不同年齡層下各縣市之身心障礙比例散佈圖
+col3=c("lightblue3","royalblue3","indianred","gray","pink","")
+
+ggplot(agedatC_m_l,aes(x=城市,y=比例,color=年齡層))+
+geom_point()+theme(axis.text.x=element_text(angle=45,hjust=1,
+face="bold",color=col3[citycol2]))+
+ylab("")+ggtitle("2012年身心障礙人口比例")+
+theme(plot.title=element_text(face="bold"))
