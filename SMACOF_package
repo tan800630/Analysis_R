@@ -1,0 +1,98 @@
+library(smacof)
+
+data(ekman)
+ekman.d <- sim2diss(ekman, method = 1)
+
+res.basic <- smacofSym(ekman.d, metric = FALSE)
+
+res.sphere <- smacofSphere.primal(ekman.d, metric = FALSE)
+
+plot(res.basic,main = "Configurations Basic SMACOF")
+
+plot(res.sphere, main = "Configurations Sphere SMACOF")
+
+
+
+data(breakfast)
+
+res.rect <- smacofRect(breakfast, itmax = 1000)
+
+plot(res.rect, joint = TRUE, xlim = c(-10, 10))
+
+plot(res.rect, plot.type = "Shepard")
+
+
+data(kinshipdelta)
+
+data(kinshipscales)
+
+res.sym <- smacofSym(kinshipdelta, itmax = 1000)
+
+res.lin <- smacofConstraint(kinshipdelta, constraint = "linear",
+external = kinshipscales, itmax = 1000)
+
+res.dia <- smacofConstraint(kinshipdelta, constraint = "diagonal",
+external = kinshipscales[,2:3], itmax = 1000)
+
+plot(res.sym, main = "Configuration Plot SMACOF")
+plot(res.lin, main = "Configuration Plot SMACOF Constraint")
+plot(res.dia, main = "Configuration Plot SMACOF Diagonal")
+
+
+#linear constraint ---  based on external matrix 去做轉換 (full)
+#diagonal constraint --- based on external matrix 去做轉換 (diagonal)
+
+
+
+
+data(trading)
+
+res.sphere <- smacofSphere.dual(trading, ndim = 3, itmax = 2000)
+
+plot3d(res.sphere,sphere = TRUE)
+
+
+
+
+
+#########################
+
+## SMACOF with diagonal constraints
+res.diag <- smacofConstraint(kinshipdelta, constraint = "diagonal", 
+external = kinshipscales, ndim = 3)
+X <- res.diag$conf                ## resulting configurations X
+C <- solve(t(Z)%*%Z)%*%t(Z)%*%X   ## compute C out of X = ZC
+round(C, 3)
+Z%*%C                             ## check: should be equal to X   
+
+
+##########################
+
+dat1=read.table("emofa1.txt",header=T,row.names=1)
+dat2=read.table("emofa2.txt",header=T,row.names=1)
+dat3=read.table("emofa3.txt",header=T,row.names=1)
+dat4=read.table("emofa4.txt",header=T,row.names=1)
+dat5=read.table("emofa5.txt",header=T,row.names=1)
+
+datconb=list(dat1,dat2,dat3,dat4,dat5)
+
+dat.basic=smacofSym(dat2,metric =TRUE)
+plot(dat.basic)
+
+
+dat.uc=smacofIndDiff(datconb,itmax=1000)
+dat.id=smacofIndDiff(datconb,constraint = "identity", itmax = 1000)
+dat.idi=smacofIndDiff(datconb,constraint = "idioscal", itmax = 1000)
+
+row.names(dat.uc$gspace)=row.names(dat1)
+row.names(dat.id$gspace)=row.names(dat1)
+row.names(dat.idi$gspace)=row.names(dat1)
+
+par(mfrow=c(3,2))
+plot(dat.id,main="Identity Group Configurations")
+
+plot(dat.idi,main="Idioscal Group Configurations")
+
+plot(-dat.basic$conf[,1],-dat.basic$conf[,2],type="n",main="dat5 Configuration",
+xlab="dimension1",ylab="dimension2")
+text(-dat.basic$conf[,1],-dat.basic$conf[,2],label=rownames(dat.basic$conf))
